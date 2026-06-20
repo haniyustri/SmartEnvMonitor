@@ -57,7 +57,26 @@ SmartEnv Monitor adalah aplikasi mobile berbasis React Native yang terintegrasi 
 ## 🏗️ Arsitektur Sistem
 
 ## 📂 Struktur Folder
----
+
+```
+SmartEnvMonitor/
+├── screens/
+│   ├── LoginScreen.jsx       # Halaman login (Anggota 1 & 3)
+│   ├── DashboardScreen.jsx   # Dashboard utama (Anggota 1)
+│   ├── HistoryScreen.jsx     # Riwayat data (Anggota 1 & 3)
+│   └── ProfileScreen.jsx     # Profil user (Anggota 1)
+├── components/
+│   ├── SensorCard.jsx        # Card data sensor (Anggota 1)
+│   ├── WeatherCard.jsx       # Card cuaca luar (Anggota 1 & 2)
+│   └── SensorChart.jsx       # Grafik realtime (Anggota 1)
+├── hooks/
+│   └── useWebSocket.js       # Hook koneksi WebSocket (Anggota 1)
+├── services/
+│   ├── weatherApi.js         # Axios OpenWeatherMap (Anggota 2)
+│   └── firebase.js           # Firebase config (Anggota 3)
+└── navigation/
+    └── AppNavigator.jsx      # Navigasi antar halaman (Anggota 1)
+```
 
 ## 🛠️ Tech Stack
 
