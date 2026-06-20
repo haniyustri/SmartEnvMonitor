@@ -55,3 +55,60 @@ SmartEnv Monitor adalah aplikasi mobile berbasis React Native yang terintegrasi 
 ---
 
 ## 🏗️ Arsitektur Sistem
+
+## 📂 Struktur Folder
+---
+
+## 🛠️ Tech Stack
+
+| Teknologi | Fungsi |
+|-----------|--------|
+| React Native + Expo | Framework aplikasi mobile |
+| WebSocket | Komunikasi realtime dengan ESP32 |
+| Axios | HTTP request ke OpenWeatherMap API |
+| Firebase Auth | Autentikasi user |
+| Firebase Firestore | Database cloud |
+| react-native-chart-kit | Grafik realtime |
+| ESP32 + DHT22 | Hardware sensor suhu & kelembaban |
+
+---
+
+## 🚀 Cara Menjalankan
+
+### Prasyarat
+- Node.js (LTS)
+- Expo CLI
+- Aplikasi Expo Go di HP
+
+### Langkah
+
+1. Clone repository
+2. Install dependencies
+3. Jalankan aplikasi
+
+```bash
+git clone https://github.com/haniyustri/SmartEnvMonitor.git
+cd SmartEnvMonitor
+npm install
+npx expo start --web
+```
+
+---
+
+## 📡 Protokol Komunikasi
+
+Aplikasi menggunakan **WebSocket over WiFi** untuk komunikasi dengan ESP32.
+
+Format data JSON yang dikirim ESP32:
+
+```json
+{
+  "temperature": 28.5,
+  "humidity": 65.2,
+  "status": "connected"
+}
+```
+
+---
+
+*Proyek ini dibuat untuk memenuhi Ujian Praktikum Mobile Computing & Telemetri dan Interfacing Semester Genap 2025-2026 — Politeknik Perkapalan Negeri Surabaya (PPNS)*
