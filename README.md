@@ -103,12 +103,14 @@ SmartEnvMonitor/
 
 1. Clone repository
 2. Install dependencies
-3. Jalankan aplikasi
+3. Install web support
+4. Jalankan aplikasi
 
 ```bash
 git clone https://github.com/haniyustri/SmartEnvMonitor.git
 cd SmartEnvMonitor
 npm install
+npx expo install react-dom react-native-web
 npx expo start --web
 ```
 
