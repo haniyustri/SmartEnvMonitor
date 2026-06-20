@@ -9,8 +9,8 @@ Aplikasi mobile IoT untuk memantau kondisi lingkungan secara realtime menggunaka
 | No | Nama | Peran | Tanggung Jawab |
 |----|------|-------|----------------|
 | 1 | Hani Yustri | UI/UX & State Specialist | Desain seluruh tampilan app, navigasi, state management, WebSocket display |
-| 2 | [Nama Anggota 2] | API & Network Specialist | Integrasi Axios ke OpenWeatherMap API, parsing JSON, error handling |
-| 3 | [Nama Anggota 3] | Cloud & Auth Specialist | Setup Firebase Auth, Firestore database, manajemen sesi user |
+| 2 | Aditya Nurfalaq | API & Network Specialist | Integrasi Axios ke OpenWeatherMap API, parsing JSON, error handling |
+| 3 | Ahmad Darwis F | Cloud & Auth Specialist | Setup Firebase Auth, Firestore database, manajemen sesi user |
 
 ---
 
