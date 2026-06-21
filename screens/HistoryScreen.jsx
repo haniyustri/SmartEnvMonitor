@@ -20,12 +20,12 @@ const generateHourlyData = (baseTemp, baseHumid, date) => {
 };
 
 const days = [
-  { label: 'Senin', date: '2026-06-16', baseTemp: 28.5, baseHumid: 65 },
-  { label: 'Selasa', date: '2026-06-17', baseTemp: 29.1, baseHumid: 63 },
-  { label: 'Rabu', date: '2026-06-18', baseTemp: 27.8, baseHumid: 67 },
-  { label: 'Kamis', date: '2026-06-19', baseTemp: 30.2, baseHumid: 61 },
-  { label: 'Jumat', date: '2026-06-20', baseTemp: 28.9, baseHumid: 64 },
-  { label: 'Sabtu', date: '2026-06-21', baseTemp: 27.5, baseHumid: 68 },
+  { dayNum: 1, label: 'Sen', date: '2026-06-16', shortDate: '16 Jun', baseTemp: 28.5, baseHumid: 65 },
+  { dayNum: 2, label: 'Sel', date: '2026-06-17', shortDate: '17 Jun', baseTemp: 29.1, baseHumid: 63 },
+  { dayNum: 3, label: 'Rab', date: '2026-06-18', shortDate: '18 Jun', baseTemp: 27.8, baseHumid: 67 },
+  { dayNum: 4, label: 'Kam', date: '2026-06-19', shortDate: '19 Jun', baseTemp: 30.2, baseHumid: 61 },
+  { dayNum: 5, label: 'Jum', date: '2026-06-20', shortDate: '20 Jun', baseTemp: 28.9, baseHumid: 64 },
+  { dayNum: 6, label: 'Sab', date: '2026-06-21', shortDate: '21 Jun', baseTemp: 27.5, baseHumid: 68 },
 ];
 
 export default function HistoryScreen() {
@@ -79,16 +79,16 @@ export default function HistoryScreen() {
             onPress={() => setSelectedDay(day)}
           >
             <Text style={[
-              styles.dayBtnText,
+              styles.dayBtnNum,
               selectedDay.date === day.date && styles.dayBtnTextActive
             ]}>
-              {day.label}
+              Hari ke-{day.dayNum}
             </Text>
             <Text style={[
-              styles.dayBtnDate,
-              selectedDay.date === day.date && { color: '#fff' }
+              styles.dayBtnLabel,
+              selectedDay.date === day.date && styles.dayBtnTextActive
             ]}>
-              {day.date.slice(8)}
+              {day.label}, {day.shortDate}
             </Text>
           </TouchableOpacity>
         ))}
@@ -97,7 +97,7 @@ export default function HistoryScreen() {
       {/* Summary Card */}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
-          📊 Ringkasan {selectedDay.label}, {selectedDay.date}
+          📊 Hari ke-{selectedDay.dayNum} — {selectedDay.label}, {selectedDay.shortDate}
         </Text>
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
@@ -106,15 +106,15 @@ export default function HistoryScreen() {
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Rata-rata Lembab</Text>
-            <Text style={[styles.summaryValue, { color: '#2d9e6b' }]}>{avgHumid}%</Text>
+            <Text style={[styles.summaryValue, { color: '#ffffff' }]}>{avgHumid}%</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Suhu Max</Text>
-            <Text style={[styles.summaryValue, { color: '#cc3333' }]}>{maxTemp}°C</Text>
+            <Text style={[styles.summaryValue, { color: '#ffcccc' }]}>{maxTemp}°C</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Suhu Min</Text>
-            <Text style={[styles.summaryValue, { color: '#38a0f5' }]}>{minTemp}°C</Text>
+            <Text style={[styles.summaryValue, { color: '#c8f0ff' }]}>{minTemp}°C</Text>
           </View>
         </View>
       </View>
@@ -148,10 +148,11 @@ const styles = StyleSheet.create({
   dayBtn: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     marginRight: 8,
     alignItems: 'center',
+    minWidth: 90,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -161,18 +162,18 @@ const styles = StyleSheet.create({
   dayBtnActive: {
     backgroundColor: '#2d9e6b',
   },
-  dayBtnText: {
-    fontSize: 13,
+  dayBtnNum: {
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#2d5a3d',
+    marginBottom: 2,
+  },
+  dayBtnLabel: {
+    fontSize: 10,
+    color: '#94a3b8',
   },
   dayBtnTextActive: {
     color: '#ffffff',
-  },
-  dayBtnDate: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 2,
   },
   summaryCard: {
     backgroundColor: '#2d9e6b',
@@ -212,7 +213,6 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ffffff',
   },
   item: {
     backgroundColor: '#ffffff',
