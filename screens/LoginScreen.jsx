@@ -20,7 +20,7 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      navigation.replace('Dashboard');
+      navigation.replace('Main');
     }, 1000);
   };
 

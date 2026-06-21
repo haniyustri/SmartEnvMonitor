@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_KEY = 'ISI_API_KEY_OPENWEATHERMAP_DISINI';
+const API_KEY = 'ea4c744299e372df5fbdccb7075636ac';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
 export const getWeather = async (city = 'Surabaya') => {
