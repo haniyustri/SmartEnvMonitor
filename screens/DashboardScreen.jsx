@@ -4,37 +4,23 @@ import SensorCard from '../components/SensorCard';
 import WeatherCard from '../components/WeatherCard';
 import useWebSocket from '../hooks/useWebSocket';
 
-const WS_URL = 'ws://192.168.1.100:81';
-
-const generateDummy = (base, range) =>
-  Array.from({ length: 8 }, () =>
-    parseFloat((base + (Math.random() * range - range / 2)).toFixed(1))
-  );
+const WS_URL = 'ws://10.98.160.155:81';
 
 export default function DashboardScreen() {
   const { sensorData, wsStatus } = useWebSocket(WS_URL);
-
-  const [currentTemp, setCurrentTemp] = useState(generateDummy(28.5, 3)[0]);
-  const [currentHumid, setCurrentHumid] = useState(generateDummy(65, 10)[0]);
+  
+  // Menggunakan data asli dari WebSocket, bukan lagi dummy
+  const currentTemp = sensorData.suhu || 0;
+  const currentHumid = sensorData.kelembaban || 0;
+  
   const [lastUpdated, setLastUpdated] = useState('--:--:--');
 
+  // Update waktu setiap kali ada data baru dari ESP32
   useEffect(() => {
-    const now = new Date();
-    setLastUpdated(now.toLocaleTimeString('id-ID'));
-
-    const interval = setInterval(() => {
-      const now = new Date();
-      setLastUpdated(now.toLocaleTimeString('id-ID'));
-      setCurrentTemp(prev =>
-        parseFloat((prev + (Math.random() * 0.6 - 0.3)).toFixed(1))
-      );
-      setCurrentHumid(prev =>
-        parseFloat((prev + (Math.random() * 1.5 - 0.75)).toFixed(1))
-      );
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+    if (sensorData.suhu) {
+      setLastUpdated(new Date().toLocaleTimeString('id-ID'));
+    }
+  }, [sensorData]);
 
   const getCondition = () => {
     if (currentTemp > 32) return { label: '🥵 Terlalu Panas', color: '#e8805a', bg: '#fff5f0' };
@@ -49,7 +35,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
-      {/* Header Card */}
+      {/* Header Card (Tidak ada perubahan bentuk) */}
       <View style={styles.headerCard}>
         <View>
           <Text style={styles.greeting}>Halo, Hani 👋</Text>
@@ -68,13 +54,13 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Kondisi Lingkungan */}
+      {/* Kondisi Lingkungan (Data asli) */}
       <View style={[styles.conditionCard, { backgroundColor: condition.bg, borderColor: condition.color }]}>
         <Text style={[styles.conditionLabel, { color: condition.color }]}>{condition.label}</Text>
         <Text style={styles.conditionTime}>Diperbarui: {lastUpdated}</Text>
       </View>
 
-      {/* Sensor Cards */}
+      {/* Sensor Cards (Data asli) */}
       <Text style={styles.sectionTitle}>📡 Data Sensor ESP32</Text>
       <View style={styles.cardRow}>
         <SensorCard
@@ -95,7 +81,7 @@ export default function DashboardScreen() {
         />
       </View>
 
-      {/* Quick Stats */}
+      {/* Quick Stats (Data asli) */}
       <View style={styles.quickStatsCard}>
         <Text style={styles.quickStatsTitle}>⚡ Ringkasan Hari Ini</Text>
         <View style={styles.quickStatsRow}>
@@ -121,7 +107,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Cuaca Luar */}
       <Text style={styles.sectionTitle}>🌤️ Cuaca Luar (Surabaya)</Text>
       <WeatherCard />
 
@@ -129,6 +114,7 @@ export default function DashboardScreen() {
     </ScrollView>
   );
 }
+// (Styles tetap sama seperti milik Anda sebelumnya)
 
 const styles = StyleSheet.create({
   container: {

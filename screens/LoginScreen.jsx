@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState } from 'react';//loginscreen
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView
 } from 'react-native';
+// 1. Tambahkan import service Firebase
+import { saveLoginLog } from '../services/firebaseService';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -16,12 +18,31 @@ export default function LoginScreen({ navigation }) {
       setError('Email dan password wajib diisi!');
       return;
     }
+
     setLoading(true);
     setError('');
-    setTimeout(() => {
+
+    try {
+      // 2. KIRIM LOG KE FIREBASE
+      // Ini akan otomatis membuat dokumen di collection 'login_logs'
+      await saveLoginLog({
+        email: email,
+        status: 'login_attempt',
+        platform: Platform.OS,
+        // Password TIDAK DISIMPAN demi keamanan
+      });
+
+      // Simulasi proses login
+      setTimeout(() => {
+        setLoading(false);
+        navigation.replace('Main');
+      }, 1000);
+
+    } catch (err) {
       setLoading(false);
-      navigation.replace('Main');
-    }, 1000);
+      setError('Gagal mencatat log login.');
+      console.error("Firebase Log Error:", err);
+    }
   };
 
   return (
@@ -88,6 +109,8 @@ export default function LoginScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
+
+// ... (StyleSheet Anda tetap sama seperti sebelumnya)
 
 const styles = StyleSheet.create({
   container: {

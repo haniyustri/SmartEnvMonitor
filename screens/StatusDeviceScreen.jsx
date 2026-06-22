@@ -1,50 +1,46 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import useWebSocket from '../hooks/useWebSocket';
+import { fetchDashboardLogs } from '../services/firebaseService';
 
-const generateAlarmLog = () => {
-  const logs = [];
-  const conditions = [
-    { status: 'Suhu Normal', led: 'Hijau', color: '#2d9e6b', temp: 28.5, humid: 65 },
-    { status: 'Terlalu Panas', led: 'Merah', color: '#cc3333', temp: 33.2, humid: 58 },
-    { status: 'Suhu Normal', led: 'Hijau', color: '#2d9e6b', temp: 29.1, humid: 64 },
-    { status: 'Terlalu Dingin', led: 'Biru', color: '#38a0f5', temp: 22.3, humid: 72 },
-    { status: 'Suhu Normal', led: 'Hijau', color: '#2d9e6b', temp: 27.8, humid: 66 },
-    { status: 'Terlalu Panas', led: 'Merah', color: '#cc3333', temp: 34.1, humid: 55 },
-  ];
-
-  for (let i = 0; i < 6; i++) {
-    const now = new Date();
-    now.setHours(now.getHours() - i * 2);
-    logs.push({
-      id: String(i),
-      time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      date: now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }),
-      ...conditions[i],
-    });
-  }
-  return logs;
-};
+const WS_URL = 'ws://10.98.160.155:81';
 
 export default function StatusDeviceScreen() {
-  const [currentTemp, setCurrentTemp] = useState(28.5);
-  const [currentHumid, setCurrentHumid] = useState(65.0);
-  const [alarmLog] = useState(generateAlarmLog());
+  // 1. Ambil data suhu & kelembaban asli dari ESP32
+  const { sensorData } = useWebSocket(WS_URL);
+  
+  const [alarmLog, setAlarmLog] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  // 2. Ambil riwayat alarm asli dari database Firebase
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTemp(prev =>
-        parseFloat((prev + (Math.random() * 0.6 - 0.3)).toFixed(1))
-      );
-      setCurrentHumid(prev =>
-        parseFloat((prev + (Math.random() * 1.5 - 0.75)).toFixed(1))
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    const loadLogs = async () => {
+      const logs = await fetchDashboardLogs(6); // Ambil 6 data terakhir
+      const formatted = logs.map((log) => ({
+        id: log.id,
+        status: log.suhu > 32 ? 'Terlalu Panas' : log.suhu < 24 ? 'Terlalu Dingin' : 'Suhu Normal',
+        color: log.suhu > 32 ? '#cc3333' : log.suhu < 24 ? '#38a0f5' : '#2d9e6b',
+        temp: log.suhu,
+        humid: log.kelembaban,
+        time: log.waktu ? log.waktu.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+        date: log.waktu ? log.waktu.toDate().toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '',
+      }));
+      setAlarmLog(formatted);
+      setLoading(false);
+    };
+    loadLogs();
+  }, [sensorData]); // Otomatis refresh log jika ada data baru
 
+  // 3. LOGIKA ALARM LED (Berdasarkan Suhu ESP32)
   const getLEDStatus = () => {
-    if (currentTemp > 32) return { led: 'Merah', color: '#cc3333', icon: '🔴', label: '🥵 Terlalu Panas' };
-    if (currentTemp < 24) return { led: 'Biru', color: '#38a0f5', icon: '🔵', label: '🥶 Terlalu Dingin' };
+    const temp = sensorData.suhu || 0;
+    
+    if (temp > 32) {
+      return { led: 'Merah', color: '#cc3333', icon: '🔴', label: '🥵 Terlalu Panas' };
+    } 
+    if (temp < 24) {
+      return { led: 'Biru', color: '#38a0f5', icon: '🔵', label: '🥶 Terlalu Dingin' };
+    }
     return { led: 'Hijau', color: '#2d9e6b', icon: '🟢', label: '🌿 Kondisi Normal' };
   };
 
@@ -113,12 +109,12 @@ export default function StatusDeviceScreen() {
         <View style={styles.sensorCard}>
           <Text style={styles.sensorIcon}>🌡️</Text>
           <Text style={styles.sensorLabel}>Suhu</Text>
-          <Text style={[styles.sensorValue, { color: '#e8805a' }]}>{currentTemp}°C</Text>
+          <Text style={[styles.sensorValue, { color: '#e8805a' }]}>{sensorData.suhu || 0}°C</Text>
         </View>
         <View style={styles.sensorCard}>
           <Text style={styles.sensorIcon}>💧</Text>
           <Text style={styles.sensorLabel}>Kelembaban</Text>
-          <Text style={[styles.sensorValue, { color: '#2d9e6b' }]}>{currentHumid}%</Text>
+          <Text style={[styles.sensorValue, { color: '#2d9e6b' }]}>{sensorData.kelembaban || 0}%</Text>
         </View>
       </View>
 
@@ -148,216 +144,62 @@ export default function StatusDeviceScreen() {
 
       {/* Log Alarm */}
       <Text style={styles.sectionTitle}>🔔 Riwayat Alarm</Text>
-      {alarmLog.map((log) => (
-        <View key={log.id} style={styles.logItem}>
-          <View style={[styles.logDot, { backgroundColor: log.color }]} />
-          <View style={styles.logContent}>
-            <Text style={styles.logStatus}>{log.status}</Text>
-            <Text style={styles.logTemp}>🌡️ {log.temp}°C · 💧 {log.humid}%</Text>
+      {loading ? (
+        <ActivityIndicator color="#2d9e6b" style={{ marginTop: 10 }} />
+      ) : (
+        alarmLog.map((log) => (
+          <View key={log.id} style={styles.logItem}>
+            <View style={[styles.logDot, { backgroundColor: log.color }]} />
+            <View style={styles.logContent}>
+              <Text style={styles.logStatus}>{log.status}</Text>
+              <Text style={styles.logTemp}>🌡️ {log.temp}°C · 💧 {log.humid}%</Text>
+            </View>
+            <View style={styles.logTime}>
+              <Text style={styles.logTimeText}>{log.time}</Text>
+              <Text style={styles.logDateText}>{log.date}</Text>
+            </View>
           </View>
-          <View style={styles.logTime}>
-            <Text style={styles.logTimeText}>{log.time}</Text>
-            <Text style={styles.logDateText}>{log.date}</Text>
-          </View>
-        </View>
-      ))}
+        ))
+      )}
 
       <View style={{ height: 24 }} />
     </ScrollView>
   );
 }
 
+// ... styles tetap persis sama seperti desain Anda ...
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0faf4',
-    padding: 16,
-  },
-  ledCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  ledTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1a5c3a',
-    marginBottom: 16,
-  },
-  ledIndicatorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  ledItem: {
-    alignItems: 'center',
-  },
-  ledCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  ledCircleText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 20,
-  },
-  ledItemLabel: {
-    fontSize: 12,
-    color: '#6c8f7a',
-    marginBottom: 4,
-  },
-  ledItemStatus: {
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  conditionBadge: {
-    borderRadius: 20,
-    padding: 10,
-    alignItems: 'center',
-  },
-  conditionText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  sensorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sensorCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sensorIcon: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  sensorLabel: {
-    fontSize: 12,
-    color: '#6c8f7a',
-    marginBottom: 4,
-  },
-  sensorValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  thresholdCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  thresholdTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1a5c3a',
-    marginBottom: 12,
-  },
-  thresholdRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  thresholdItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  thresholdIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  thresholdLabel: {
-    fontSize: 11,
-    color: '#6c8f7a',
-    marginBottom: 4,
-  },
-  thresholdValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  thresholdDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#e8f5ee',
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#2d5a3d',
-    marginBottom: 10,
-  },
-  logItem: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  logDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
-  },
-  logContent: {
-    flex: 1,
-  },
-  logStatus: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1a5c3a',
-    marginBottom: 2,
-  },
-  logTemp: {
-    fontSize: 11,
-    color: '#6c8f7a',
-  },
-  logTime: {
-    alignItems: 'flex-end',
-  },
-  logTimeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2d5a3d',
-  },
-  logDateText: {
-    fontSize: 10,
-    color: '#94a3b8',
-  },
+  container: { flex: 1, backgroundColor: '#f0faf4', padding: 16 },
+  ledCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 2, elevation: 3 },
+  ledTitle: { fontSize: 14, fontWeight: 'bold', color: '#1a5c3a', marginBottom: 16 },
+  ledIndicatorRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
+  ledItem: { alignItems: 'center' },
+  ledCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 3 },
+  ledCircleText: { color: '#ffffff', fontWeight: 'bold', fontSize: 20 },
+  ledItemLabel: { fontSize: 12, color: '#6c8f7a', marginBottom: 4 },
+  ledItemStatus: { fontSize: 11, fontWeight: 'bold' },
+  conditionBadge: { borderRadius: 20, padding: 10, alignItems: 'center' },
+  conditionText: { fontSize: 14, fontWeight: 'bold' },
+  sensorRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  sensorCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 14, padding: 14, alignItems: 'center', marginHorizontal: 4, elevation: 3 },
+  sensorIcon: { fontSize: 24, marginBottom: 6 },
+  sensorLabel: { fontSize: 12, color: '#6c8f7a', marginBottom: 4 },
+  sensorValue: { fontSize: 22, fontWeight: 'bold' },
+  thresholdCard: { backgroundColor: '#ffffff', borderRadius: 14, padding: 14, marginBottom: 16, elevation: 3 },
+  thresholdTitle: { fontSize: 13, fontWeight: 'bold', color: '#1a5c3a', marginBottom: 12 },
+  thresholdRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+  thresholdItem: { alignItems: 'center', flex: 1 },
+  thresholdIcon: { fontSize: 20, marginBottom: 4 },
+  thresholdLabel: { fontSize: 11, color: '#6c8f7a', marginBottom: 4 },
+  thresholdValue: { fontSize: 13, fontWeight: 'bold' },
+  thresholdDivider: { width: 1, height: 40, backgroundColor: '#e8f5ee' },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#2d5a3d', marginBottom: 10 },
+  logItem: { backgroundColor: '#ffffff', borderRadius: 12, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  logDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  logContent: { flex: 1 },
+  logStatus: { fontSize: 13, fontWeight: 'bold', color: '#1a5c3a', marginBottom: 2 },
+  logTemp: { fontSize: 11, color: '#6c8f7a' },
+  logTime: { alignItems: 'flex-end' },
+  logTimeText: { fontSize: 12, fontWeight: 'bold', color: '#2d5a3d' },
+  logDateText: { fontSize: 10, color: '#94a3b8' },
 });

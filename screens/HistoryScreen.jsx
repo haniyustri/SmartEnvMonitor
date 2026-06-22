@@ -1,45 +1,67 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ScrollView
+  TouchableOpacity, ScrollView, ActivityIndicator,
+  RefreshControl // 1. Tambahkan import RefreshControl
 } from 'react-native';
-
-const generateHourlyData = (baseTemp, baseHumid, date) => {
-  const data = [];
-  for (let hour = 0; hour < 24; hour++) {
-    const tempVariation = Math.sin(hour / 24 * Math.PI * 2) * 3;
-    const humidVariation = Math.cos(hour / 24 * Math.PI * 2) * 8;
-    data.push({
-      id: `${date}-${hour}`,
-      hour: `${String(hour).padStart(2, '0')}:00`,
-      temperature: parseFloat((baseTemp + tempVariation + (Math.random() * 0.5)).toFixed(1)),
-      humidity: parseFloat((baseHumid + humidVariation + (Math.random() * 1)).toFixed(1)),
-    });
-  }
-  return data;
-};
+import { fetchLogsByDate } from '../services/firebaseService';
 
 const days = [
-  { dayNum: 1, label: 'Sen', date: '2026-06-16', shortDate: '16 Jun', baseTemp: 28.5, baseHumid: 65 },
-  { dayNum: 2, label: 'Sel', date: '2026-06-17', shortDate: '17 Jun', baseTemp: 29.1, baseHumid: 63 },
-  { dayNum: 3, label: 'Rab', date: '2026-06-18', shortDate: '18 Jun', baseTemp: 27.8, baseHumid: 67 },
-  { dayNum: 4, label: 'Kam', date: '2026-06-19', shortDate: '19 Jun', baseTemp: 30.2, baseHumid: 61 },
-  { dayNum: 5, label: 'Jum', date: '2026-06-20', shortDate: '20 Jun', baseTemp: 28.9, baseHumid: 64 },
-  { dayNum: 6, label: 'Sab', date: '2026-06-21', shortDate: '21 Jun', baseTemp: 27.5, baseHumid: 68 },
+  { dayNum: 1, label: 'Sen', date: '2026-06-16', shortDate: '16 Jun' },
+  { dayNum: 2, label: 'Sel', date: '2026-06-17', shortDate: '17 Jun' },
+  { dayNum: 3, label: 'Rab', date: '2026-06-18', shortDate: '18 Jun' },
+  { dayNum: 4, label: 'Kam', date: '2026-06-19', shortDate: '19 Jun' },
+  { dayNum: 5, label: 'Jum', date: '2026-06-20', shortDate: '20 Jun' },
+  { dayNum: 6, label: 'Sab', date: '2026-06-21', shortDate: '21 Jun' },
+  { dayNum: 7, label: 'Min', date: '2026-06-22', shortDate: '22 Jun' },
 ];
 
 export default function HistoryScreen() {
   const [selectedDay, setSelectedDay] = useState(days[days.length - 1]);
-  const historyData = generateHourlyData(
-    selectedDay.baseTemp,
-    selectedDay.baseHumid,
-    selectedDay.date
-  );
+  const [historyData, setHistoryData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // 2. State untuk animasi refresh
 
-  const avgTemp = (historyData.reduce((a, b) => a + b.temperature, 0) / historyData.length).toFixed(1);
-  const avgHumid = (historyData.reduce((a, b) => a + b.humidity, 0) / historyData.length).toFixed(1);
-  const maxTemp = Math.max(...historyData.map(d => d.temperature)).toFixed(1);
-  const minTemp = Math.min(...historyData.map(d => d.temperature)).toFixed(1);
+  // Pisahkan logika ambil data agar bisa dipanggil ulang saat di-refresh
+  const fetchRiwayatData = async (isRefreshing = false) => {
+    if (!isRefreshing) setLoading(true); // Tampilkan loading besar cuma di awal
+    
+    const data = await fetchLogsByDate(selectedDay.date);
+    
+    if (data && data.length > 0) {
+      const formatted = data.map(item => {
+        const dateObj = item.waktu ? item.waktu.toDate() : new Date();
+        return {
+          id: item.id,
+          hour: dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          temperature: parseFloat(item.suhu).toFixed(1),
+          humidity: parseFloat(item.kelembaban).toFixed(1),
+        };
+      });
+      setHistoryData(formatted);
+    } else {
+      setHistoryData([]);
+    }
+    
+    if (!isRefreshing) setLoading(false);
+  };
+
+  // Panggil data pertama kali dan saat tanggal berubah
+  useEffect(() => {
+    fetchRiwayatData(false);
+  }, [selectedDay]);
+
+  // 3. Fungsi ketika layar ditarik ke bawah
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true); // Munculkan spinner refresh
+    await fetchRiwayatData(true); // Ambil data lagi
+    setRefreshing(false); // Matikan spinner refresh
+  }, [selectedDay]);
+
+  const avgTemp = historyData.length > 0 ? (historyData.reduce((a, b) => a + parseFloat(b.temperature), 0) / historyData.length).toFixed(1) : '--';
+  const avgHumid = historyData.length > 0 ? (historyData.reduce((a, b) => a + parseFloat(b.humidity), 0) / historyData.length).toFixed(1) : '--';
+  const maxTemp = historyData.length > 0 ? Math.max(...historyData.map(d => parseFloat(d.temperature))).toFixed(1) : '--';
+  const minTemp = historyData.length > 0 ? Math.min(...historyData.map(d => parseFloat(d.temperature))).toFixed(1) : '--';
 
   const renderItem = ({ item }) => (
     <View style={styles.item}>
@@ -62,7 +84,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Pilih Hari */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -94,7 +115,6 @@ export default function HistoryScreen() {
         ))}
       </ScrollView>
 
-      {/* Summary Card */}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
           📊 Hari ke-{selectedDay.dayNum} — {selectedDay.label}, {selectedDay.shortDate}
@@ -119,149 +139,62 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      {/* List per jam */}
-      <FlatList
-        data={historyData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#2d9e6b" style={{ marginTop: 20 }} />
+      ) : historyData.length === 0 ? (
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2d9e6b"]} />
+          }
+        >
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#6c8f7a' }}>
+            Belum ada data sensor pada tanggal ini. Tarik ke bawah untuk refresh.
+          </Text>
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={historyData}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+          // 4. Tambahkan RefreshControl di sini
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              colors={["#2d9e6b"]} // Warna spinner refresh
+            />
+          }
+        />
+      )}
     </View>
   );
 }
 
+// ... styles tetap persis sama ...
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0faf4',
-    padding: 16,
-  },
-  daySelector: {
-    marginBottom: 12,
-    marginTop: 4,
-    minHeight: 70,
-  },
-  daySelectorContent: {
-    paddingRight: 8,
-  },
-  dayBtn: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginRight: 8,
-    alignItems: 'center',
-    minWidth: 90,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  dayBtnActive: {
-    backgroundColor: '#2d9e6b',
-  },
-  dayBtnNum: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2d5a3d',
-    marginBottom: 2,
-  },
-  dayBtnLabel: {
-    fontSize: 10,
-    color: '#94a3b8',
-  },
-  dayBtnTextActive: {
-    color: '#ffffff',
-  },
-  summaryCard: {
-    backgroundColor: '#2d9e6b',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#2d9e6b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  summaryTitle: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryItem: {
-    alignItems: 'center',
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 10,
-    padding: 8,
-    marginHorizontal: 2,
-  },
-  summaryLabel: {
-    color: '#c8f0dc',
-    fontSize: 9,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  item: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  timeCol: {
-    width: 50,
-    alignItems: 'center',
-  },
-  time: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1a5c3a',
-  },
-  dividerCol: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#e8f5ee',
-    marginHorizontal: 12,
-  },
-  dataCol: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  dataChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff5f0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chipIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  chipValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#e8805a',
-  },
+  container: { flex: 1, backgroundColor: '#f0faf4', padding: 16 },
+  daySelector: { marginBottom: 12, marginTop: 4, minHeight: 70 },
+  daySelectorContent: { paddingRight: 8 },
+  dayBtn: { backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginRight: 8, alignItems: 'center', minWidth: 90, elevation: 2 },
+  dayBtnActive: { backgroundColor: '#2d9e6b' },
+  dayBtnNum: { fontSize: 12, fontWeight: 'bold', color: '#2d5a3d', marginBottom: 2 },
+  dayBtnLabel: { fontSize: 10, color: '#94a3b8' },
+  dayBtnTextActive: { color: '#ffffff' },
+  summaryCard: { backgroundColor: '#2d9e6b', borderRadius: 16, padding: 16, marginBottom: 12, elevation: 4 },
+  summaryTitle: { color: '#ffffff', fontSize: 13, fontWeight: 'bold', marginBottom: 12 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryItem: { alignItems: 'center', flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: 8, marginHorizontal: 2 },
+  summaryLabel: { color: '#c8f0dc', fontSize: 9, textAlign: 'center', marginBottom: 4 },
+  summaryValue: { fontSize: 14, fontWeight: 'bold' },
+  item: { backgroundColor: '#ffffff', borderRadius: 12, padding: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  timeCol: { width: 50, alignItems: 'center' },
+  time: { fontSize: 13, fontWeight: 'bold', color: '#1a5c3a' },
+  dividerCol: { width: 1, height: 30, backgroundColor: '#e8f5ee', marginHorizontal: 12 },
+  dataCol: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
+  dataChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff5f0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  chipIcon: { fontSize: 14, marginRight: 4 },
+  chipValue: { fontSize: 13, fontWeight: 'bold', color: '#e8805a' },
 });
