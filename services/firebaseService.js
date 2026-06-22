@@ -1,5 +1,4 @@
-// ✅ IMPORT db DAN auth LANGSUNG DARI CONFIG YANG SAMA
-import { db, auth } from './firebaseConfig'; 
+import { db } from './firebaseConfig';
 import { 
   collection, 
   addDoc, 
@@ -13,9 +12,6 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 
-// ✅ Hanya import fungsi utility signOut saja dari library
-import { signOut } from 'firebase/auth';
-
 const COLLECTION_NAME = 'dashboard_logs';
 
 export const saveLoginLog = async (data) => {
@@ -24,6 +20,7 @@ export const saveLoginLog = async (data) => {
       ...data,
       waktuLogin: serverTimestamp(),
     };
+    
     await addDoc(collection(db, "login_logs"), dataLengkap);
     console.log('[Firebase] Log login berhasil disimpan!');
   } catch (error) {
@@ -33,6 +30,7 @@ export const saveLoginLog = async (data) => {
 
 export const saveSensorData = async ({ suhu, kelembaban, kondisi, statusKoneksi }) => {
   try {
+    console.log('[Firebase] Mencoba simpan:', { suhu, kelembaban, kondisi });
     await addDoc(collection(db, COLLECTION_NAME), {
       suhu,
       kelembaban,
@@ -61,6 +59,7 @@ export const fetchDashboardLogs = async (n = 10) => {
   }
 };
 
+// Fungsi ini yang dipanggil oleh HistoryScreen untuk mengambil data
 export const fetchLogsByDate = async (dateStr) => {
   try {
     const start = new Date(dateStr + "T00:00:00");
@@ -80,19 +79,5 @@ export const fetchLogsByDate = async (dateStr) => {
   } catch (error) {
     console.error('[Firebase] Gagal ambil riwayat:', error);
     return [];
-  }
-};
-
-// ==========================================
-// ✅ FUNGSI AUTH DENGAN INSTANCE YANG BENAR
-// ==========================================
-export const logoutUser = async () => {
-  try {
-    // Menggunakan instance auth dari config
-    await signOut(auth);
-    console.log('[Firebase Auth] Berhasil logout!');
-  } catch (error) {
-    console.error('[Firebase Auth] Gagal logout:', error);
-    throw error; 
   }
 };
